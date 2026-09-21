@@ -13,7 +13,7 @@
 
 **Domain phụ trách:** MIT OpenCourseWare - `ocw.mit.edu`
 
-**Seed URL của mình (1/5 seed của cả nhóm):**
+**Seed URL (1/5 seed của cả nhóm):**
 
 ```text
 https://ocw.mit.edu/
