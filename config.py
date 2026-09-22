@@ -3,27 +3,29 @@ from pathlib import Path
 
 TOPIC = "Education"
 
-# One-link version requested by the group.
-# The crawler starts ONLY from this Stanford Engineering page.
+# The lecturer allows up to 4 domains. This project uses 5 starting web pages
+# (seed URLs) across 2 Education domains so it stays within that requirement.
 SEED_URLS = [
+    "https://ocw.mit.edu/",
+    "https://ocw.mit.edu/search/",
+    "https://ocw.mit.edu/courses/",
+    "https://www.stanford.edu/academics/everyone",
     "https://engineering.stanford.edu/students-academics/academics/online-learning",
 ]
 
-# Keep the crawl focused on Stanford Engineering only.
-# Links to www.stanford.edu, online.stanford.edu, external departments, social media,
-# PDFs, etc. may still be stored in the links table, but they are not crawled.
+# Root-domain form is intentional. Subdomains such as www.stanford.edu and
+# engineering.stanford.edu are accepted by parser.domain_is_allowed().
 ALLOWED_DOMAINS = [
-    "engineering.stanford.edu",
+    "ocw.mit.edu",
+    "stanford.edu",
 ]
 
-# Full-data-oriented limits. BFS still stops safely at these boundaries.
-MAX_DEPTH = 4
-MAX_PAGES = 1500
-REQUEST_TIMEOUT = 15
+MAX_DEPTH = 2
+MAX_PAGES = 30
+REQUEST_TIMEOUT = 10
 CRAWL_DELAY = 1.0
-MAX_REDIRECTS = 5
 
-# The crawler reads robots.txt dynamically before crawling the host.
+# The crawler reads robots.txt dynamically before crawling each host.
 RESPECT_ROBOTS_TXT = True
 ROBOTS_FAIL_CLOSED = True
 
@@ -33,7 +35,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DATABASE_PATH = DATA_DIR / "crawler.db"
 
-# Rebuild the database on each run so DB + summary describe one clean run.
+# Rebuild the database on each run so the summary and DB describe one clean run.
 RESET_DATABASE_ON_START = True
 
 # Non-HTML resources that should normally not be crawled.

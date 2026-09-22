@@ -14,20 +14,15 @@ TRACKING_QUERY_KEYS = {
 
 
 def normalize_url(url: str) -> str:
-    """Normalize a web URL without breaking server canonical redirects.
+    """Normalize a web URL to reduce duplicate crawling.
 
-    Important: trailing slashes are PRESERVED. Some sites (including common
-    framework-driven sites) canonicalize ``/search`` to ``/search/``. Removing
-    that slash before every request can create an artificial redirect loop and
-    prevent the crawler from ever reaching the final HTML page.
-
-    Rules:
-    - lowercase scheme + hostname
+    Rules used here are intentionally conservative:
+    - lowercase scheme + host
     - remove URL fragments (#...)
     - remove default ports (:80 for HTTP, :443 for HTTPS)
-    - preserve the server path, including a meaningful trailing slash
-    - remove common tracking query parameters such as utm_* and fbclid
-    - keep other query parameters because they may change page content
+    - remove a trailing slash except for the root path
+    - remove common tracking parameters such as utm_* and fbclid
+    - keep all other query parameters because they may change page content
     """
     parsed = urlparse(url.strip())
     scheme = parsed.scheme.lower()
@@ -36,16 +31,15 @@ def normalize_url(url: str) -> str:
     if not scheme or not hostname:
         return url.strip()
 
-    try:
-        port = parsed.port
-    except ValueError:
-        return url.strip()
-
+    port = parsed.port
     if (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
         port = None
 
     netloc = hostname if port is None else f"{hostname}:{port}"
+
     path = parsed.path or "/"
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/")
 
     kept_query = []
     for key, value in parse_qsl(parsed.query, keep_blank_values=True):
@@ -90,18 +84,6 @@ def is_valid_url(url: str, allowed_domains: list[str], blocked_extensions: set[s
     return True, "valid"
 
 
-def looks_like_html(content_type: str, body: str) -> bool:
-    """Return True when a 200 response can reasonably be parsed as HTML."""
-    ctype = (content_type or "").lower()
-    if "text/html" in ctype or "application/xhtml+xml" in ctype:
-        return True
-    if ctype and not ctype.startswith("text/"):
-        return False
-
-    sample = (body or "").lstrip()[:500].lower()
-    return sample.startswith("<!doctype html") or "<html" in sample
-
-
 def parse_html(html: str) -> BeautifulSoup:
     return BeautifulSoup(html, "html.parser")
 
@@ -121,7 +103,7 @@ def extract_page_information(
         if soup.title:
             title = soup.title.get_text(" ", strip=True)
 
-        # Remove non-visible elements while retaining the complete visible text.
+        # Remove non-visible/boilerplate elements before collecting visible text.
         for tag in soup(["script", "style", "noscript", "template", "svg"]):
             tag.decompose()
         content = soup.get_text(separator=" ", strip=True)
@@ -148,6 +130,7 @@ def extract_links(current_url: str, soup: BeautifulSoup) -> list[str]:
         if not href:
             continue
 
+        # Fast reject for non-web schemes commonly found in href attributes.
         lower = href.lower()
         if lower.startswith(("mailto:", "javascript:", "tel:", "data:")):
             continue
