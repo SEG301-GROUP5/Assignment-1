@@ -1,0 +1,27 @@
+==============================================
+ CRAWLING SUMMARY
+==============================================
+Topic                  : Education
+Seed URLs              : 1
+Pages Crawled          : 100
+HTML Pages Stored      : 91
+Unique URLs Discovered : 2995
+Skipped URLs           : 4455
+Failed Requests        : 0
+Redirects Followed     : 8
+Maximum Depth          : 3
+Depth 0                 : 1
+Depth 1                 : 84
+Depth 2                 : 15
+Depth 3                 : 0
+HTTP 200               : 91
+HTTP 202               : 7
+HTTP 403               : 2
+Redirect HTTP 301      : 5 hop(s)
+Redirect HTTP 302      : 1 hop(s)
+Redirect HTTP 307      : 2 hop(s)
+Links Extracted        : 6981
+Links Queued           : 2597
+Visible Text Stored    : 689,496 chars
+Frontier Remaining     : 2427
+==============================================
