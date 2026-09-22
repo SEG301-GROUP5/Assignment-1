@@ -1,7 +1,6 @@
 """HTML parsing, URL normalization, extraction, and filtering helpers."""
 from __future__ import annotations
 
-import hashlib
 from datetime import datetime, timezone
 from pathlib import PurePosixPath
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
@@ -13,28 +12,22 @@ TRACKING_QUERY_KEYS = {
     "fbclid", "gclid", "mc_cid", "mc_eid", "_rsc",
 }
 
-# Tags stripped before extracting visible text: they repeat on every page
-# (nav/footer/header/forms) and add noise rather than real content.
-BOILERPLATE_TAGS = [
-    "script", "style", "noscript", "template", "svg",
-    "nav", "footer", "header", "aside", "form", "button",
-]
-
-# Content-quality thresholds used to decide what's worth storing.
-MIN_CONTENT_LENGTH = 100     # shorter than this -> treated as a low-value page
-MAX_CONTENT_LENGTH = 8000    # longer than this -> truncated before storing
-
 
 def normalize_url(url: str) -> str:
-    """Normalize a web URL to reduce duplicate crawling.
+    """Normalize a web URL without breaking server canonical redirects.
 
-    Rules used here are intentionally conservative:
-    - lowercase scheme + host
+    Important: trailing slashes are PRESERVED. Some sites (including common
+    framework-driven sites) canonicalize ``/search`` to ``/search/``. Removing
+    that slash before every request can create an artificial redirect loop and
+    prevent the crawler from ever reaching the final HTML page.
+
+    Rules:
+    - lowercase scheme + hostname
     - remove URL fragments (#...)
     - remove default ports (:80 for HTTP, :443 for HTTPS)
-    - remove a trailing slash except for the root path
-    - remove common tracking parameters such as utm_* and fbclid
-    - keep all other query parameters because they may change page content
+    - preserve the server path, including a meaningful trailing slash
+    - remove common tracking query parameters such as utm_* and fbclid
+    - keep other query parameters because they may change page content
     """
     parsed = urlparse(url.strip())
     scheme = parsed.scheme.lower()
@@ -43,15 +36,16 @@ def normalize_url(url: str) -> str:
     if not scheme or not hostname:
         return url.strip()
 
-    port = parsed.port
+    try:
+        port = parsed.port
+    except ValueError:
+        return url.strip()
+
     if (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
         port = None
 
     netloc = hostname if port is None else f"{hostname}:{port}"
-
     path = parsed.path or "/"
-    if path != "/" and path.endswith("/"):
-        path = path.rstrip("/")
 
     kept_query = []
     for key, value in parse_qsl(parsed.query, keep_blank_values=True):
@@ -93,25 +87,23 @@ def is_valid_url(url: str, allowed_domains: list[str], blocked_extensions: set[s
     if suffix in blocked_extensions:
         return False, "blocked_file_type"
 
-    # /search pages on ocw.mit.edu render results client-side with
-    # JavaScript; requests/BeautifulSoup only see the empty HTML shell
-    # (0 chars of content), so they're rejected here instead of wasting a
-    # MAX_PAGES request on a page we already know will be empty.
-    normalized_path = parsed.path.rstrip("/")
-    if normalized_path == "/search" and parsed.query:
-        return False, "js_rendered_search_page"
-
     return True, "valid"
+
+
+def looks_like_html(content_type: str, body: str) -> bool:
+    """Return True when a 200 response can reasonably be parsed as HTML."""
+    ctype = (content_type or "").lower()
+    if "text/html" in ctype or "application/xhtml+xml" in ctype:
+        return True
+    if ctype and not ctype.startswith("text/"):
+        return False
+
+    sample = (body or "").lstrip()[:500].lower()
+    return sample.startswith("<!doctype html") or "<html" in sample
 
 
 def parse_html(html: str) -> BeautifulSoup:
     return BeautifulSoup(html, "html.parser")
-
-
-def is_low_value_content(content: str) -> bool:
-    """A page whose visible text is too short to be useful (e.g. a login
-    page, an empty listing, a redirect stub) is not worth storing."""
-    return len(content.strip()) < MIN_CONTENT_LENGTH
 
 
 def extract_page_information(
@@ -125,35 +117,20 @@ def extract_page_information(
 
     title = ""
     content = ""
-    content_hash = None
-
     if soup is not None:
         if soup.title:
             title = soup.title.get_text(" ", strip=True)
 
-        # Remove boilerplate elements so the extracted text is the actual
-        # page content, not navigation/footer text repeated on every page.
-        for tag in soup(BOILERPLATE_TAGS):
+        # Remove non-visible elements while retaining the complete visible text.
+        for tag in soup(["script", "style", "noscript", "template", "svg"]):
             tag.decompose()
-
-        # Prefer a main content region if the page marks one; falls back to
-        # the whole (already-stripped) document otherwise.
-        main = soup.find("main") or soup.find("article") or soup
-        content = main.get_text(separator=" ", strip=True)
-        content = " ".join(content.split())  # collapse repeated whitespace
-
-        if len(content) > MAX_CONTENT_LENGTH:
-            content = content[:MAX_CONTENT_LENGTH]
-
-        if content:
-            content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        content = soup.get_text(separator=" ", strip=True)
 
     return {
         "url": url,
         "domain": parsed.netloc,
         "title": title,
         "content": content,
-        "content_hash": content_hash,
         "depth": depth,
         "status_code": status_code,
         "crawled_at": datetime.now(timezone.utc).isoformat(),
