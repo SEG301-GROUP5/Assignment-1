@@ -1,4 +1,4 @@
-"""Entry point for the SEG301 Focused Web Crawler assignment."""
+"""Điểm khởi chạy cho bài tập SEG301 Focused Web Crawler."""
 from pathlib import Path
 
 import config
@@ -12,30 +12,30 @@ README_RESULTS_END = "<!-- AUTO_CRAWL_RESULTS_END -->"
 def summary_lines(summary: dict) -> list[str]:
     lines = [
         "=" * 46,
-        " CRAWLING SUMMARY",
+        " TÓM TẮT KẾT QUẢ CRAWL",
         "=" * 46,
-        f"Topic                  : {summary['topic']}",
-        f"Seed URLs              : {summary['seed_urls']}",
-        f"Pages Crawled          : {summary['pages_crawled']}",
-        f"HTML Pages Stored      : {summary['html_pages_stored']}",
-        f"Unique URLs Discovered : {summary['unique_urls_discovered']}",
-        f"Skipped URLs           : {summary['skipped_urls']}",
-        f"Failed Requests        : {summary['failed_requests']}",
-        f"Redirects Followed     : {summary['redirects_followed']}",
-        f"Maximum Depth          : {summary['maximum_depth']}",
+        f"Chủ đề                 : {summary['topic']}",
+        f"Số Seed URL            : {summary['seed_urls']}",
+        f"Số trang đã crawl      : {summary['pages_crawled']}",
+        f"Số trang HTML đã lưu   : {summary['html_pages_stored']}",
+        f"URL duy nhất phát hiện : {summary['unique_urls_discovered']}",
+        f"URL đã bỏ qua          : {summary['skipped_urls']}",
+        f"Request thất bại       : {summary['failed_requests']}",
+        f"Redirect đã đi theo    : {summary['redirects_followed']}",
+        f"Độ sâu tối đa          : {summary['maximum_depth']}",
     ]
     for depth in range(summary["maximum_depth"] + 1):
         lines.append(f"Depth {depth:<2}                : {summary['depth_counts'].get(depth, 0)}")
     for status, count in summary["status_counts"].items():
         lines.append(f"HTTP {status:<3}               : {count}")
     for status, count in summary["redirect_status_counts"].items():
-        lines.append(f"Redirect HTTP {status:<3}      : {count} hop(s)")
+        lines.append(f"Redirect HTTP {status:<3}      : {count} lần")
     lines.extend(
         [
-            f"Links Extracted        : {summary['total_links_extracted']}",
-            f"Links Queued           : {summary['total_links_queued']}",
-            f"Visible Text Stored    : {summary['total_content_chars']:,} chars",
-            f"Frontier Remaining     : {summary['frontier_remaining']}",
+            f"Tổng link đã trích xuất: {summary['total_links_extracted']}",
+            f"Tổng link vào Frontier : {summary['total_links_queued']}",
+            f"Text đã lưu            : {summary['total_content_chars']:,} ký tự",
+            f"Frontier còn lại       : {summary['frontier_remaining']}",
             "=" * 46,
         ]
     )
@@ -49,7 +49,7 @@ def write_summary_file(summary: dict) -> Path:
 
 
 def update_readme_results(summary: dict) -> bool:
-    """Insert the real final crawl statistics into README.md after every run."""
+    """Tự động chèn thống kê crawl thật vào README.md sau mỗi lần chạy."""
     readme = Path(config.BASE_DIR) / "README.md"
     if not readme.exists():
         return False
@@ -78,11 +78,11 @@ def main() -> None:
     summary_path = write_summary_file(summary)
     readme_updated = update_readme_results(summary)
 
-    print(f"Summary saved to: {summary_path}")
+    print(f"Đã lưu thống kê tại: {summary_path}")
     if readme_updated:
-        print("README.md final crawling statistics updated automatically.")
+        print("Đã tự động cập nhật thống kê crawl cuối cùng vào README.md.")
     else:
-        print("WARNING: README.md auto-results markers were not found; README was not updated.")
+        print("CẢNH BÁO: Không tìm thấy marker tự động trong README.md nên README chưa được cập nhật.")
 
 
 if __name__ == "__main__":
