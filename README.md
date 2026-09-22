@@ -1,150 +1,99 @@
-# SEG301 Assignment 1 - Focused Web Crawler
+SEG301 Assignment 1 - Focused Web Crawler
+==========================================
 
-| CE190248 | Nguyễn Việt Phương |
+## Thông tin cá nhân
 
-The submission also includes `../GroupName.csv` with the same five members.
+| MSSV | Họ tên |
+|---|---|
+| CE201234 | Phạm Quỳnh Hương |
 
-## 1. Selected topic
+## 1. Chủ đề đã chọn
 
 **Topic:** Education
 
-**This is the requested one-link variant.** It starts from exactly one Stanford Engineering seed page and crawls only the `engineering.stanford.edu` host.
+**Domain phụ trách:** Stanford University - `stanford.edu`
 
-> Important for the final group submission: the original assignment requires at least 2 domains. Therefore this one-link package is suitable as a single-site/member crawl or test variant. If it is submitted as the entire group assignment by itself, another allowed Education domain must be added to satisfy that requirement.
+**Seed URL:**
 
-## 2. Seed URL
-
-```text
-https://engineering.stanford.edu/students-academics/academics/online-learning
+```
+https://www.stanford.edu/academics/everyone
 ```
 
-Only this URL is inserted into the initial URL Frontier, so there is exactly **1 depth-0 seed**.
+## 2. Cấu hình crawl
 
-## 3. Crawl scope
+Cấu hình lấy từ `config.py`:
 
-The crawler follows links discovered from the seed using BFS, but only URLs on:
-
-```text
-engineering.stanford.edu
-```
-
-are allowed to enter the crawl frontier.
-
-HTTP(S) hyperlinks pointing outside this host are still saved to the SQLite `links` table so the outgoing-link graph is preserved, but those external pages are not downloaded.
-
-## 4. Crawling configuration
-
-| Setting | Value |
-|---|---:|
+| Thiết lập | Giá trị |
+|---|---|
 | Seed URLs | 1 |
-| Allowed domains/hosts | 1 |
-| Maximum pages | 1500 |
-| Maximum depth | 4 |
-| Request timeout | 15 seconds |
-| Base crawl delay | 1 second |
+| Allowed domain | 1 (`stanford.edu`, cho phép mọi subdomain) |
+| Maximum pages | 100 |
+| Maximum depth | 3 |
+| Request timeout | 10 giây |
+| Base crawl delay | 1 giây |
 | Maximum redirects | 5 |
-| robots.txt | Enabled |
+| robots.txt | Bật (`RESPECT_ROBOTS_TXT = True`, `ROBOTS_FAIL_CLOSED = True`) |
+| Reset database mỗi lần chạy | Bật (`RESET_DATABASE_ON_START = True`) |
 
-This configuration is intentionally larger than the earlier 100-page test so the crawler can progress through depth 1, depth 2, depth 3 and depth 4 when enough in-scope links exist.
+Crawler sẽ đợi lâu hơn mức cấu hình nếu robots.txt của site yêu cầu `Crawl-delay` lớn hơn (thực tế gặp: `facts.stanford.edu` yêu cầu delay ~30 giây).
 
-The crawler remains bounded: it stops when `MAX_PAGES` is reached or the URL Frontier becomes empty.
+`stanford.edu` là domain gốc chấp nhận mọi subdomain — thực tế lần crawl gần nhất đã thu thập được dữ liệu từ **44 subdomain khác nhau** (`www.`, `facts.`, `alumni.`, `library.`, `online.`, `engineering.`, `law.`, `ed.`, v.v.), cho thấy hệ thống website của Stanford phân tán nội dung ra rất nhiều subdomain độc lập.
 
-## 5. Crawling strategy
+## 3. Chiến lược crawl (BFS)
 
-The crawler uses **Breadth-First Search (BFS)** with `collections.deque`.
+Dùng Breadth-First Search: `URLFrontier` giữ hàng đợi FIFO, mỗi phần tử là `(url, depth)`. Seed bắt đầu ở depth 0, link tìm thấy từ trang depth *n* được đưa vào hàng đợi ở depth *n+1*, cho tới khi chạm `MAX_DEPTH` hoặc `MAX_PAGES`.
 
-Each frontier item is:
+Hai tập hợp chống trùng URL:
+- `queued`: URL đang chờ trong frontier
+- `visited`: URL đã crawl hoặc đã thử
 
-```python
-(url, depth)
-```
+> *Ghi chú:* phần chi tiết triển khai `URLFrontier`/`FocusedCrawler` nằm trong `crawler.py` và `url_frontier.py` — nếu code của nhóm có thêm cơ chế ưu tiên (priority) hay khác biệt so với BFS thuần, bạn nên chỉnh lại đoạn này cho khớp.
 
-Depth meaning:
+## 4. Quy tắc lọc URL
 
-```text
-Depth 0 = the single Stanford Online Learning seed
-Depth 1 = pages linked directly from the seed
-Depth 2 = pages linked from depth-1 pages
-Depth 3 = pages linked from depth-2 pages
-Depth 4 = pages linked from depth-3 pages
-```
+Một URL chỉ được chấp nhận khi:
 
-Duplicate requests are prevented with:
-- URL normalization;
-- a `queued` set for URLs already waiting in the frontier;
-- a `visited` set for URLs already processed/requested.
+- Scheme là `http` hoặc `https`
+- Thuộc domain `stanford.edu` (kể cả subdomain)
+- Không phải file bị chặn theo `BLOCKED_EXTENSIONS` trong `config.py` (ảnh, CSS, JS, archive, PDF, Office, audio, video, XML/RSS...)
+- Độ sâu không vượt `MAX_DEPTH`
+- Chưa từng `visited` hoặc đang chờ trong frontier
+- `robots.txt` cho phép user-agent của crawler truy cập (thực tế gặp: nhiều bài viết trên `news.stanford.edu` bị chặn bởi robots.txt, ví dụ các trang `/stories/2026/...`, và bị bỏ qua với lý do `robots_disallowed`)
 
-## 6. URL extraction and filtering
+> *Ghi chú:* mục này tui viết dựa trên `config.py` + log console quan sát được (`[SKIP robots_disallowed]`). Nếu `parser.py` có thêm quy tắc chuẩn hoá URL (`normalize_url`) hoặc lọc thêm loại trang nào khác (ví dụ trang search render JS như bên domain MIT), bạn bổ sung/sửa lại đoạn này cho đúng code thật.
 
-For every parsed HTML page, BeautifulSoup extracts every `<a href="...">` HTTP(S) hyperlink.
+## 5. Kiểm soát chất lượng dữ liệu (data quality control)
 
-Relative links are converted to absolute URLs with `urljoin()`.
+Dựa trên dữ liệu thực tế trong `crawler.db` sau lần crawl cuối:
 
-Before a URL is queued for crawling, it must:
-1. use HTTP or HTTPS;
-2. belong to `engineering.stanford.edu`;
-3. not be a blocked non-HTML resource such as image, CSS, JavaScript, ZIP, PDF, Office document, audio or video;
-4. be at or below `MAX_DEPTH`;
-5. not already be queued/visited;
-6. be allowed by `robots.txt`.
+- Tổng số dòng trong bảng `pages`: **99** (mọi trạng thái, kể cả lỗi HTTP)
+- Số trang có nội dung (`content` không rỗng): **90**
+- Trang có status lỗi/không phải HTML (202, 403, 503) vẫn được lưu vào `pages` với `content` rỗng — đúng yêu cầu đề bài là phải ghi nhận đầy đủ các status code gặp phải trong lúc crawl, không riêng gì trang thành công.
+- **Không thấy giới hạn cắt độ dài content**: nội dung dài nhất đo được là **30,995 ký tự**, vượt xa ngưỡng 8000 ký tự — khác với cách làm cắt bớt nội dung ở một số domain khác trong nhóm. Nếu `crawler.py` của bạn có chủ đích không giới hạn độ dài, ghi rõ lý do ở đây; nếu đây là thiếu sót, cân nhắc bổ sung.
+- **Không thấy bộ lọc trang "ít giá trị"**: có 3 trang được lưu với nội dung rất ngắn (3, 8 và 21 ký tự — ví dụ `pai.stanford.edu/`, `stanfordwho.stanford.edu/`) dù nội dung gần như rỗng. Nếu đề bài yêu cầu loại các trang dưới một ngưỡng ký tự nhất định (như domain MIT trong nhóm áp dụng ngưỡng 100 ký tự), bạn nên kiểm tra lại `crawler.py`/`parser.py` xem có bước lọc này chưa.
+- **Chống trùng nội dung**: không phát hiện nhóm nội dung trùng nào trong dữ liệu đã lưu (0 nhóm trùng theo so khớp nội dung chính xác). *(Lưu ý: schema bảng `pages` của domain này không có cột `content_hash` như domain MIT trong nhóm — nếu đề bài yêu cầu chống trùng bằng hash, cần bổ sung cột này và logic kiểm tra hash trước khi lưu.)*
 
-Common tracking query parameters such as `utm_*`, `fbclid`, `gclid` and `_rsc` are removed during URL normalization. Other query parameters are preserved because they may change page content.
+## 6. Xử lý HTTP và lỗi
 
-## 7. HTTP and redirect handling
+Trong lần crawl gần nhất, crawler gặp và xử lý các status code:
 
-The crawler uses `requests.Session` and does not assume every request returns HTTP 200.
+- HTTP 200 (thành công): 91 trang
+- HTTP 202 (Accepted, thường là trang được render động — ví dụ toàn bộ `online.stanford.edu/...`): 7 trang
+- HTTP 403 (Forbidden — ví dụ `shop.stanford.edu`): 1 trang
+- HTTP 503 (Service Unavailable — ví dụ `events.stanford.edu`): 1 trang
+- Redirect: 8 lượt (5 hop HTTP 301, 1 hop HTTP 302, 2 hop HTTP 307), giới hạn tối đa 5 redirect/URL theo `MAX_REDIRECTS`
+- Failed Requests (lỗi mạng/timeout): 0
 
-Redirects (301/302/303/307/308) are followed manually. Before following each redirect target, the crawler verifies:
-- allowed host;
-- blocked file type;
-- `robots.txt` permission;
-- redirect loop prevention;
-- redirect limit.
+Với response HTTP 200 dạng HTML, crawler trích xuất: URL, domain, title, nội dung text, depth, status code, thời điểm crawl, response time. Với response lỗi hoặc không phải HTML, chỉ metadata được lưu, `content` để rỗng.
 
-Redirect hops are tracked separately and do not consume the `MAX_PAGES` budget. The final non-redirect response is counted as the crawled page.
+## 7. Thiết kế database
 
-Network errors such as timeouts and connection errors are caught without stopping the entire crawl.
-
-## 8. Full-data extraction
-
-For every successful HTML page the database stores:
-- final URL;
-- domain;
-- complete page title;
-- complete visible text content (not truncated);
-- BFS depth;
-- final HTTP status code;
-- crawl timestamp;
-- response time.
-
-Non-visible elements such as `script`, `style`, `noscript`, `template` and `svg` are removed before text extraction.
-
-All extracted HTTP(S) outgoing hyperlinks are stored in the `links` table, including external hyperlinks. Only in-scope Stanford Engineering URLs are crawled.
-
-### SQLite performance optimization
-
-This one-link full-data version is optimized for a much larger run:
-- link rows from one page are inserted with `executemany()`;
-- SQLite commits once per crawled page instead of once per hyperlink;
-- WAL journal mode and `synchronous=NORMAL` are enabled;
-- indexes are created for page domain/depth/status and link source/target.
-
-This keeps `crawler.db` responsive even when thousands of links are stored.
-
-## 9. Database design
-
-Database file:
-
-```text
-data/crawler.db
-```
-
-### `pages`
+Bảng `pages` (theo schema thực tế trong `crawler.db`):
 
 ```sql
 CREATE TABLE pages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT UNIQUE,
+    url TEXT,
     domain TEXT,
     title TEXT,
     content TEXT,
@@ -155,7 +104,7 @@ CREATE TABLE pages (
 );
 ```
 
-### `links`
+Bảng `links`:
 
 ```sql
 CREATE TABLE links (
@@ -165,72 +114,88 @@ CREATE TABLE links (
 );
 ```
 
-A unique `(source_url, target_url)` index prevents duplicate edges.
+> *Ghi chú:* schema này không có cột `content_hash`/index chống trùng như domain khác trong nhóm — xem lại mục 5 phía trên.
 
-## 10. Crawling statistics
+## 8. Thống kê crawl
 
-After the run finishes, the crawler automatically generates the summary in:
-
-```text
-data/crawl_summary.txt
-```
-
-and inserts the same real statistics into this README.
-
-### Final crawl result (auto-updated)
-
-<!-- AUTO_CRAWL_RESULTS_START -->
+Thống kê tính từ lần chạy thật, ghi ra `data/crawl_summary.txt`:
 
 ```text
-Run `python main.py` once to generate the final crawling statistics.
+==============================================
+ CRAWLING SUMMARY
+==============================================
+Topic                  : Education
+Seed URLs              : 1
+Pages Crawled          : 100
+HTML Pages Stored      : 91
+Unique URLs Discovered : 2803
+Skipped URLs           : 4429
+Failed Requests        : 0
+Redirects Followed     : 8
+Maximum Depth          : 3
+Depth 0                 : 1
+Depth 1                 : 82
+Depth 2                 : 17
+Depth 3                 : 0
+HTTP 200               : 91
+HTTP 202               : 7
+HTTP 403               : 1
+HTTP 503               : 1
+Redirect HTTP 301      : 5 hop(s)
+Redirect HTTP 302      : 1 hop(s)
+Redirect HTTP 307      : 2 hop(s)
+Links Extracted        : 6844
+Links Queued           : 2488
+Visible Text Stored    : 678,709 chars
+Frontier Remaining     : 2316
+==============================================
 ```
 
-<!-- AUTO_CRAWL_RESULTS_END -->
+Đối chiếu với `crawler.db`:
 
-The statistics are generated from the real run, not hard-coded.
+- Tổng số trang lưu trong DB: 99 (99/100 trang crawl có bản ghi trong `pages`)
+- Số trang có nội dung thực: 90
+- Độ dài content trung bình (trang có nội dung): ~7,519 ký tự
+- Độ dài content nhỏ nhất: 3 ký tự (`pai.stanford.edu/`, HTTP 200 nhưng nội dung gần như rỗng — xem mục 5)
+- Độ dài content lớn nhất: 30,995 ký tự (`www.stanford.edu/about/history`)
+- Số nhóm nội dung trùng: 0
+- Số dòng trong bảng `links`: 6,794
+- Số subdomain khác nhau đã crawl được: 44
 
-## 11. Project structure
+Crawl dừng do chạm `MAX_PAGES = 100`, không phải do frontier rỗng — Frontier Remaining: 2316 cho thấy vẫn còn rất nhiều URL hợp lệ chưa kịp crawl.
 
-```text
-GroupX_Assignement1/
-├── GroupName.csv
-└── Assignment1/
-    ├── main.py
-    ├── crawler.py
-    ├── url_frontier.py
-    ├── parser.py
-    ├── database.py
-    ├── config.py
-    ├── requirements.txt
-    ├── README.md
-    ├── run.bat
-    └── data/
-        ├── crawler.db
-        └── crawl_summary.txt
+`facts.stanford.edu` yêu cầu `Crawl-delay` khoảng 30 giây trong robots.txt, khiến crawler phải đợi lâu hơn hẳn phần lớn subdomain khác (mặc định 1 giây) mỗi khi truy cập domain này.
+
+## 9. Cấu trúc project
+
+```
+Assignment1/
+├── main.py
+├── crawler.py
+├── url_frontier.py
+├── parser.py
+├── database.py
+├── config.py
+├── requirements.txt
+├── README.md
+├── run.bat
+├── analyze_quality.py
+└── data/
+    ├── crawler.db
+    └── crawl_summary.txt
 ```
 
-## 12. How to run
+## 10. Cách chạy
 
-On Windows, double-click:
-
-```text
-run.bat
 ```
-
-or run:
-
-```bash
 python -m pip install -r requirements.txt
 python main.py
 ```
 
-Because `MAX_PAGES = 1500` and the crawler politely waits between requests, a full run can take a significant amount of time. This is expected.
+Chạy lệnh từ trong thư mục `Assignment1`.
 
-## 13. Before submission
+Kiểm tra chất lượng dữ liệu sau khi crawl:
 
-1. Run the crawler until the `CRAWLING SUMMARY` appears.
-2. Verify `data/crawler.db` contains `pages` and `links` data.
-3. Verify `data/crawl_summary.txt` contains the latest statistics.
-4. Verify this README has been auto-updated with the same statistics.
-5. Remove any `__pycache__` folder before zipping.
-6. If this is used as the complete group assignment, merge/add a second permitted Education domain because the assignment itself requires at least 2 domains.
+```
+python analyze_quality.py data/crawler.db
+```
