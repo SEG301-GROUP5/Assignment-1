@@ -13,12 +13,7 @@ class CrawlerDatabase:
 
         self.path = path
         self.conn = sqlite3.connect(path)
-
-        # Safe performance tuning for larger crawl runs.
         self.conn.execute("PRAGMA foreign_keys = ON")
-        self.conn.execute("PRAGMA journal_mode = WAL")
-        self.conn.execute("PRAGMA synchronous = NORMAL")
-        self.conn.execute("PRAGMA temp_store = MEMORY")
         self._create_schema()
 
     def _create_schema(self) -> None:
@@ -44,12 +39,6 @@ class CrawlerDatabase:
 
             CREATE UNIQUE INDEX IF NOT EXISTS idx_links_unique
             ON links(source_url, target_url);
-
-            CREATE INDEX IF NOT EXISTS idx_pages_domain ON pages(domain);
-            CREATE INDEX IF NOT EXISTS idx_pages_depth ON pages(depth);
-            CREATE INDEX IF NOT EXISTS idx_pages_status ON pages(status_code);
-            CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_url);
-            CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_url);
             """
         )
         self.conn.commit()
@@ -72,19 +61,14 @@ class CrawlerDatabase:
                 record["response_time"],
             ),
         )
+        self.conn.commit()
 
-    def save_links(self, source_url: str, target_urls: list[str]) -> None:
-        """Store all links from one page in one SQLite batch."""
-        if not target_urls:
-            return
-        self.conn.executemany(
+    def save_link(self, source_url: str, target_url: str) -> None:
+        self.conn.execute(
             "INSERT OR IGNORE INTO links (source_url, target_url) VALUES (?, ?)",
-            ((source_url, target_url) for target_url in target_urls),
+            (source_url, target_url),
         )
-
-    def commit(self) -> None:
         self.conn.commit()
 
     def close(self) -> None:
-        self.conn.commit()
         self.conn.close()

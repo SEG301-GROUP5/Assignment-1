@@ -301,10 +301,6 @@ class FocusedCrawler:
                 if soup is not None:
                     self.html_pages_stored += 1
                     self.total_content_chars += len(record["content"])
-                    # Batch-store the complete outgoing-link set in one SQLite operation.
-                    # This is much faster for a large full-data crawl than committing
-                    # one link at a time.
-                    self.db.save_links(final_url, extracted_links)
 
                 accepted = 0
                 if soup is not None:
@@ -313,6 +309,7 @@ class FocusedCrawler:
                         # preserves the page's outgoing-link graph, even when a target
                         # is outside the focused crawl scope.
                         self.discovered_urls.add(target)
+                        self.db.save_link(final_url, target)
 
                         valid, reason = is_valid_url(
                             target, config.ALLOWED_DOMAINS, config.BLOCKED_EXTENSIONS
@@ -331,10 +328,6 @@ class FocusedCrawler:
                             self.total_links_queued += 1
                         else:
                             self._skip("duplicate")
-
-                # One commit per crawled page keeps the database durable while avoiding
-                # thousands of tiny commits during large crawls.
-                self.db.commit()
 
                 title = record["title"] or "(no title)"
                 print("-" * 46)
