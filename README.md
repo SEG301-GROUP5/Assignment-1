@@ -179,12 +179,3 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-## 10. Liên hệ SEG301 Chapter 3 - Crawls and Feeds
-
-Cách cài đặt bám sát các khái niệm trong bài giảng:
-- **Web crawling:** seed URLs, tải trang, trích xuất link, phát hiện URL mới.
-- **URL frontier:** kiểm soát các URL đang chờ crawl.
-- **Focused crawling:** chỉ cho phép các domain thuộc Education.
-- **Crawl politeness:** chờ giữa các request và tuân thủ `robots.txt`.
-- **Duplicate detection:** chuẩn hoá URL kết hợp set `queued`/`visited` để tránh request trùng.
-- **Document storage:** nội dung và metadata trang được lưu trong SQLite để phục vụ lập chỉ mục/truy vấn sau này.
