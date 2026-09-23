@@ -10,19 +10,15 @@
 
 **Topic:** Education
 
-**Domain phụ trách:** MIT OpenCourseWare (`ocw.mit.edu`) và Stanford (`stanford.edu`)
+**Domain phụ trách:** MIT OpenCourseWare (`ocw.mit.edu`)
 
-**Seed URLs (5 seed):**
+**Seed URL (1 seed):**
 
 ```text
-1. https://ocw.mit.edu/
-2. https://ocw.mit.edu/search/
-3. https://ocw.mit.edu/courses/
-4. https://www.stanford.edu/academics/everyone
-5. https://engineering.stanford.edu/students-academics/academics/online-learning
+https://ocw.mit.edu/courses/
 ```
 
-Đề bài cho phép tối đa 4 domain. Bài này dùng 5 seed URL trải trên 2 domain Education (`ocw.mit.edu`, `stanford.edu`), thay vì 5 domain riêng biệt.
+Crawler chỉ bắt đầu từ trang danh mục khoá học của MIT OpenCourseWare và chỉ crawl trong domain `ocw.mit.edu`.
 
 ## 2. Cấu hình crawl
 
@@ -30,8 +26,8 @@ Cấu hình lấy từ `config.py`:
 
 | Thiết lập | Giá trị |
 |---|---:|
-| Seed URLs | 5 |
-| Allowed domains | 2 (`ocw.mit.edu`, `stanford.edu`) |
+| Seed URLs | 1 |
+| Allowed domains | 1 (`ocw.mit.edu`) |
 | Maximum pages | 30 |
 | Maximum depth | 2 |
 | Request timeout | 10 giây |
@@ -44,7 +40,7 @@ Crawler sẽ đợi lâu hơn nếu `robots.txt` của site yêu cầu `Crawl-de
 
 Crawler dùng **Breadth-First Search (BFS)**. `URLFrontier` cài đặt bằng `collections.deque` làm hàng đợi FIFO. Mỗi phần tử trong frontier là `(url, depth)`.
 
-Cả 5 seed đều bắt đầu ở depth `0`. Link tìm thấy từ trang depth 0 vào hàng đợi ở depth `1`, cứ thế cho tới khi chạm `MAX_DEPTH`.
+Seed bắt đầu ở depth `0`. Link tìm thấy từ trang depth 0 vào hàng đợi ở depth `1`, cứ thế cho tới khi chạm `MAX_DEPTH`.
 
 Hai set chống trùng:
 - `queued`: URL đang chờ trong frontier
@@ -58,7 +54,7 @@ Link thô được chuyển thành URL tuyệt đối bằng `urljoin()`, sau đ
 
 Một URL chỉ được chấp nhận vào frontier khi:
 1. Scheme là `http` hoặc `https`.
-2. Thuộc `ocw.mit.edu`, `stanford.edu`, hoặc subdomain Stanford được cho phép.
+2. Thuộc domain `ocw.mit.edu`.
 3. Không phải file bị chặn (ảnh, CSS, JS, archive, PDF, Office, audio, video...).
 4. Độ sâu không vượt quá `MAX_DEPTH`.
 5. Chưa từng `visited` hoặc đang chờ trong frontier.
@@ -90,7 +86,7 @@ Các thẻ `script`, `style`, `noscript`, `template`, `svg` bị loại bỏ tr�
 
 ## 6. Thiết kế database
 
-Database: `data/crawler.db`.
+Database: `data/crawler_Loc.db`.
 
 ### Bảng `pages`
 
@@ -122,27 +118,28 @@ Index unique trên `(source_url, target_url)` tránh lưu trùng cùng một qua
 
 ## 7. Kết quả crawl (chạy thật ngày gần nhất)
 
-Thống kê được tính tự động từ lần chạy thật, ghi ra `data/crawl_summary.txt`:
+Thống kê được tính tự động từ lần chạy thật, ghi ra `data/crawl_summary_loc.txt`:
 
 ```text
 ==============================================
  CRAWLING SUMMARY
 ==============================================
 Topic                  : Education
-Seed URLs              : 5
+Seed URLs              : 1
 Pages Crawled          : 30
-Unique URLs Discovered : 736
-Skipped URLs           : 394
+Unique URLs Discovered : 391
+Skipped URLs           : 537
 Failed Requests        : 0
 Maximum Depth          : 2
-Depth 0                : 5
-Depth 1                : 25
+Depth 0                : 1
+Depth 1                : 3
+Depth 2                : 26
 HTTP 200               : 30
-Frontier Remaining     : 607
+Frontier Remaining     : 118
 ==============================================
 ```
 
-Crawl dừng do chạm **MAX_PAGES = 30**, không phải do frontier rỗng — `Frontier Remaining: 607` cho thấy vẫn còn rất nhiều URL hợp lệ chưa kịp crawl. Đây là một trong hai điều kiện dừng hợp lệ theo đề bài (`MAX_PAGES is reached`). Toàn bộ 30 trang crawl được đều trả về HTTP 200, không có request thất bại nào.
+Crawl dừng do chạm **MAX_PAGES = 30**, không phải do frontier rỗng — `Frontier Remaining: 118` cho thấy vẫn còn rất nhiều URL hợp lệ chưa kịp crawl. Đây là một trong hai điều kiện dừng hợp lệ theo đề bài (`MAX_PAGES is reached`). Toàn bộ 30 trang crawl được đều trả về HTTP 200, không có request thất bại nào.
 
 ## 8. Cấu trúc project
 
@@ -158,8 +155,8 @@ Assignment1/
 ├── README.md
 ├── run.bat
 └── data/
-    ├── crawler.db
-    └── crawl_summary.txt
+    ├── crawler_Loc.db
+    └── crawl_summary_loc.txt
 ```
 
 ## 9. Cách chạy
