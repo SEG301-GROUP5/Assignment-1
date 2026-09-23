@@ -2,14 +2,15 @@
  CRAWLING SUMMARY
 ==============================================
 Topic                  : Education
-Seed URLs              : 5
+Seed URLs              : 1
 Pages Crawled          : 30
-Unique URLs Discovered : 736
-Skipped URLs           : 394
+Unique URLs Discovered : 391
+Skipped URLs           : 537
 Failed Requests        : 0
 Maximum Depth          : 2
-Depth 0                 : 5
-Depth 1                 : 25
+Depth 0                 : 1
+Depth 1                 : 3
+Depth 2                 : 26
 HTTP 200               : 30
-Frontier Remaining     : 607
+Frontier Remaining     : 118
 ==============================================

@@ -3,21 +3,13 @@ from pathlib import Path
 
 TOPIC = "Education"
 
-# The lecturer allows up to 4 domains. This project uses 5 starting web pages
-# (seed URLs) across 2 Education domains so it stays within that requirement.
+# Loc's crawl: a single seed URL on MIT OpenCourseWare.
 SEED_URLS = [
-    "https://ocw.mit.edu/",
-    "https://ocw.mit.edu/search/",
     "https://ocw.mit.edu/courses/",
-    "https://www.stanford.edu/academics/everyone",
-    "https://engineering.stanford.edu/students-academics/academics/online-learning",
 ]
 
-# Root-domain form is intentional. Subdomains such as www.stanford.edu and
-# engineering.stanford.edu are accepted by parser.domain_is_allowed().
 ALLOWED_DOMAINS = [
     "ocw.mit.edu",
-    "stanford.edu",
 ]
 
 MAX_DEPTH = 2
@@ -33,7 +25,7 @@ USER_AGENT = "SEG301-FocusedCrawler/1.0 (+educational-assignment)"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
-DATABASE_PATH = DATA_DIR / "crawler.db"
+DATABASE_PATH = DATA_DIR / "crawler_Loc.db"
 
 # Rebuild the database on each run so the summary and DB describe one clean run.
 RESET_DATABASE_ON_START = True

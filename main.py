@@ -6,7 +6,7 @@ from crawler import FocusedCrawler
 
 
 def write_summary_file(summary: dict) -> None:
-    output = Path(config.DATA_DIR) / "crawl_summary.txt"
+    output = Path(config.DATA_DIR) / "crawl_summary_loc.txt"
     lines = [
         "=" * 46,
         " CRAWLING SUMMARY",
@@ -32,7 +32,7 @@ def main() -> None:
     crawler = FocusedCrawler()
     summary = crawler.run()
     write_summary_file(summary)
-    print(f"Summary saved to: {Path(config.DATA_DIR) / 'crawl_summary.txt'}")
+    print(f"Summary saved to: {Path(config.DATA_DIR) / 'crawl_summary_loc.txt'}")
 
 
 if __name__ == "__main__":
